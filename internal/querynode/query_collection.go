@@ -1146,13 +1146,13 @@ func (q *queryCollection) retrieve(msg queryMsg, publishResult bool) (*msgstream
 	collectionID := retrieveMsg.CollectionID
 	collection, err := q.streaming.replica.getCollectionByID(collectionID)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	expr := retrieveMsg.SerializedExprPlan
 	plan, err := createRetrievePlanByExpr(collection, expr, timestamp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer plan.delete()
 

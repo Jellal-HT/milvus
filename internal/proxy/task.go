@@ -1643,17 +1643,27 @@ func (st *searchTask) PreExecute(ctx context.Context) error {
 
 	searchIDs := st.query.GetSearchIDs().GetIntId().GetData()
 	if len(st.SearchRequest.PlaceholderGroup) == 0 && len(searchIDs) > 0 {
+		vectorFieldIDs := make([]int64, 0)
 		pkField := ""
 		for _, field := range schema.Fields {
 			if field.IsPrimaryKey {
 				pkField = field.Name
 			}
+			if field.DataType == schemapb.DataType_FloatVector {
+				vectorFieldIDs = append(vectorFieldIDs, field.FieldID)
+				break
+			}
 		}
 		searchByIDExpr := IDs2Expr(pkField, searchIDs)
-		searchByIDExprPlan, err := CreateExprPlan(schema, searchByIDExpr)
+		searchByIDExprPlan, err := createExprPlan(schema, searchByIDExpr)
 		if err != nil {
 			return err
 		}
+		if len(vectorFieldIDs) == 0 {
+			return errors.New(fmt.Sprintln("no vector field in schema, collectionID = ", collID))
+		}
+		searchByIDExprPlan.OutputFieldIds = vectorFieldIDs
+
 		st.SearchByIDExprPlan, err = proto.Marshal(searchByIDExprPlan)
 		if err != nil {
 			return err
