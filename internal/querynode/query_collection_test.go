@@ -579,7 +579,7 @@ func TestQueryCollection_receive(t *testing.T) {
 	msg, err := genSimpleRetrieveMsg()
 	assert.NoError(t, err)
 
-	err = queryCollection.retrieve(msg)
+	_, err = queryCollection.retrieve(msg, true)
 	assert.NoError(t, err)
 }
 
