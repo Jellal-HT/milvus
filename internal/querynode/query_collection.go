@@ -1254,12 +1254,10 @@ func (q *queryCollection) searchByID(searchByIDMsg *msgstream.SearchMsg) error {
 		}
 	}
 
-	// we only have one vector field for now
 	if len(vectorFieldIDs) != 1 {
 		return errors.New(fmt.Sprintln("cannot find vector field when searchByID, collectionID = ", collectionID))
 	}
 
-	// construct retrieveMsg
 	retrieveMsg := &msgstream.RetrieveMsg{
 		BaseMsg: searchByIDMsg.BaseMsg,
 		RetrieveRequest: internalpb.RetrieveRequest{
@@ -1282,7 +1280,6 @@ func (q *queryCollection) searchByID(searchByIDMsg *msgstream.SearchMsg) error {
 		return err
 	}
 
-	// get float vector, TODO: support binary vector
 	var floatVector []float32
 	var dim int64
 	fieldsData := retrieveResult.RetrieveResults.GetFieldsData()
@@ -1302,7 +1299,6 @@ func (q *queryCollection) searchByID(searchByIDMsg *msgstream.SearchMsg) error {
 		return err
 	}
 
-	// construct search message
 	searchByIDMsg.PlaceholderGroup = placeHolderGroupBytes
 	return q.searchByVectors(searchByIDMsg)
 }
