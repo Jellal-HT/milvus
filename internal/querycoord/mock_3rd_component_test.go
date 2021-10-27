@@ -42,7 +42,6 @@ const (
 	defaultPartitionID  = UniqueID(2021)
 	defaultSegmentID    = UniqueID(2021)
 	defaultQueryNodeID  = int64(100)
-	defaultChannelNum   = 2
 )
 
 func genCollectionSchema(collectionID UniqueID, isBinary bool) *schemapb.CollectionSchema {
@@ -319,7 +318,7 @@ func newDataCoordMock(ctx context.Context) (*dataCoordMock, error) {
 		partitionID2Segment: partitionID2Segments,
 		Segment2Binlog:      segment2Binglog,
 		baseSegmentID:       defaultSegmentID,
-		channelNumPerCol:    defaultChannelNum,
+		channelNumPerCol:    2,
 	}, nil
 }
 

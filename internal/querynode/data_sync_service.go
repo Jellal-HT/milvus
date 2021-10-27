@@ -38,10 +38,9 @@ type dataSyncService struct {
 	collectionFlowGraphs map[UniqueID]map[Channel]*queryNodeFlowGraph // map[collectionID]flowGraphs
 	partitionFlowGraphs  map[UniqueID]map[Channel]*queryNodeFlowGraph // map[partitionID]flowGraphs
 
-	streamingReplica  ReplicaInterface
-	historicalReplica ReplicaInterface
-	tSafeReplica      TSafeReplicaInterface
-	msFactory         msgstream.Factory
+	streamingReplica ReplicaInterface
+	tSafeReplica     TSafeReplicaInterface
+	msFactory        msgstream.Factory
 }
 
 // collection flow graph
@@ -61,7 +60,6 @@ func (dsService *dataSyncService) addCollectionFlowGraph(collectionID UniqueID, 
 			collectionID,
 			partitionID,
 			dsService.streamingReplica,
-			dsService.historicalReplica,
 			dsService.tSafeReplica,
 			vChannel,
 			dsService.msFactory)
@@ -135,7 +133,6 @@ func (dsService *dataSyncService) addPartitionFlowGraph(collectionID UniqueID, p
 			collectionID,
 			partitionID,
 			dsService.streamingReplica,
-			dsService.historicalReplica,
 			dsService.tSafeReplica,
 			vChannel,
 			dsService.msFactory)
@@ -201,7 +198,6 @@ func (dsService *dataSyncService) removePartitionFlowGraph(partitionID UniqueID)
 // newDataSyncService returns a new dataSyncService
 func newDataSyncService(ctx context.Context,
 	streamingReplica ReplicaInterface,
-	historicalReplica ReplicaInterface,
 	tSafeReplica TSafeReplicaInterface,
 	factory msgstream.Factory) *dataSyncService {
 
@@ -210,7 +206,6 @@ func newDataSyncService(ctx context.Context,
 		collectionFlowGraphs: make(map[UniqueID]map[Channel]*queryNodeFlowGraph),
 		partitionFlowGraphs:  make(map[UniqueID]map[Channel]*queryNodeFlowGraph),
 		streamingReplica:     streamingReplica,
-		historicalReplica:    historicalReplica,
 		tSafeReplica:         tSafeReplica,
 		msFactory:            factory,
 	}

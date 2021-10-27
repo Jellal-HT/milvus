@@ -1377,17 +1377,13 @@ func (node *Proxy) Delete(ctx context.Context, request *milvuspb.DeleteRequest) 
 		ctx:       ctx,
 		Condition: NewTaskCondition(ctx),
 		req:       deleteReq,
-		BaseDeleteTask: BaseDeleteTask{
-			BaseMsg: msgstream.BaseMsg{},
-			DeleteRequest: internalpb.DeleteRequest{
-				Base: &commonpb.MsgBase{
-					MsgType: commonpb.MsgType_Delete,
-					MsgID:   0,
-				},
-				CollectionName: request.CollectionName,
-				PartitionName:  request.PartitionName,
-				// RowData: transfer column based request to this
+		DeleteRequest: &internalpb.DeleteRequest{
+			Base: &commonpb.MsgBase{
+				MsgType:  commonpb.MsgType_Delete,
+				SourceID: Params.ProxyID,
 			},
+			CollectionName: request.CollectionName,
+			PartitionName:  request.PartitionName,
 		},
 		chMgr:    node.chMgr,
 		chTicker: node.chTicker,
@@ -2162,11 +2158,6 @@ func (node *Proxy) GetQuerySegmentInfo(ctx context.Context, req *milvuspb.GetQue
 		resp.Status.Reason = err.Error()
 		return resp, nil
 	}
-	collID, err := globalMetaCache.GetCollectionID(ctx, req.CollectionName)
-	if err != nil {
-		resp.Status.Reason = err.Error()
-		return resp, nil
-	}
 	infoResp, err := node.queryCoord.GetSegmentInfo(ctx, &querypb.GetSegmentInfoRequest{
 		Base: &commonpb.MsgBase{
 			MsgType:   commonpb.MsgType_SegmentInfo,
@@ -2174,8 +2165,7 @@ func (node *Proxy) GetQuerySegmentInfo(ctx context.Context, req *milvuspb.GetQue
 			Timestamp: 0,
 			SourceID:  Params.ProxyID,
 		},
-		CollectionID: collID,
-		SegmentIDs:   segments,
+		SegmentIDs: segments,
 	})
 	if err != nil {
 		log.Error("Failed to get segment info from QueryCoord",

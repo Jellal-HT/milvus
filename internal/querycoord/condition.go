@@ -16,18 +16,18 @@ import (
 	"errors"
 )
 
-type condition interface {
+type Condition interface {
 	waitToFinish() error
 	notify(err error)
 	Ctx() context.Context
 }
 
-type taskCondition struct {
+type TaskCondition struct {
 	done chan error
 	ctx  context.Context
 }
 
-func (tc *taskCondition) waitToFinish() error {
+func (tc *TaskCondition) waitToFinish() error {
 	for {
 		select {
 		case <-tc.ctx.Done():
@@ -38,16 +38,16 @@ func (tc *taskCondition) waitToFinish() error {
 	}
 }
 
-func (tc *taskCondition) notify(err error) {
+func (tc *TaskCondition) notify(err error) {
 	tc.done <- err
 }
 
-func (tc *taskCondition) Ctx() context.Context {
+func (tc *TaskCondition) Ctx() context.Context {
 	return tc.ctx
 }
 
-func newTaskCondition(ctx context.Context) *taskCondition {
-	return &taskCondition{
+func NewTaskCondition(ctx context.Context) *TaskCondition {
+	return &TaskCondition{
 		done: make(chan error, 1),
 		ctx:  ctx,
 	}

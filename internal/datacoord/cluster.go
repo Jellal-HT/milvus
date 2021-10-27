@@ -1,18 +1,13 @@
-// Licensed to the LF AI & Data foundation under one
-// or more contributor license agreements. See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership. The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
+// Copyright (C) 2019-2020 Zilliz. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
 // with the License. You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Unless required by applicable law or agreed to in writing, software distributed under the License
+// is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+// or implied. See the License for the specific language governing permissions and limitations under the License.
 
 package datacoord
 
@@ -67,20 +62,18 @@ func (c *Cluster) UnRegister(node *NodeInfo) error {
 
 // Watch try to add a channel in datanode cluster
 func (c *Cluster) Watch(ch string, collectionID UniqueID) error {
-	return c.channelManager.Watch(&channel{Name: ch, CollectionID: collectionID})
+	return c.channelManager.Watch(&channel{name: ch, collectionID: collectionID})
 }
 
 // Flush sends flush requests to corresponding datanodes according to channels that segments belong to
-func (c *Cluster) Flush(ctx context.Context, segments []*datapb.SegmentInfo, markSegments []*datapb.SegmentInfo) {
+func (c *Cluster) Flush(ctx context.Context, segments []*datapb.SegmentInfo) {
 	channels := c.channelManager.GetChannels()
 	nodeSegments := make(map[int64][]int64)
-	nodeMarks := make(map[int64][]int64)
 	channelNodes := make(map[string]int64)
-	targetNodes := make(map[int64]struct{})
 	// channel -> node
 	for _, c := range channels {
 		for _, ch := range c.Channels {
-			channelNodes[ch.Name] = c.NodeID
+			channelNodes[ch.name] = c.NodeID
 		}
 	}
 	// find node on which segment exists
@@ -91,33 +84,16 @@ func (c *Cluster) Flush(ctx context.Context, segments []*datapb.SegmentInfo, mar
 			continue
 		}
 		nodeSegments[nodeID] = append(nodeSegments[nodeID], segment.GetID())
-		targetNodes[nodeID] = struct{}{}
-	}
-	for _, segment := range markSegments {
-		nodeID, ok := channelNodes[segment.GetInsertChannel()]
-		if !ok {
-			log.Warn("channel is not allocated to any node", zap.String("channel", segment.GetInsertChannel()))
-			continue
-		}
-		nodeMarks[nodeID] = append(nodeMarks[nodeID], segment.GetID())
-		targetNodes[nodeID] = struct{}{}
 	}
 
-	for nodeID := range targetNodes {
-		segments := nodeSegments[nodeID]
-		marks := nodeMarks[nodeID]
-		if len(segments)+len(marks) == 0 { // no segment for this node
-			continue
-		}
+	for nodeID, segments := range nodeSegments {
 		req := &datapb.FlushSegmentsRequest{
 			Base: &commonpb.MsgBase{
 				MsgType:  commonpb.MsgType_Flush,
 				SourceID: Params.NodeID,
 			},
-			SegmentIDs:     segments,
-			MarkSegmentIDs: marks,
+			SegmentIDs: segments,
 		}
-		log.Warn("Plan to flush", zap.Int64("node_id", nodeID), zap.Int64s("segments", segments), zap.Int64s("marks", marks))
 		c.sessionManager.Flush(ctx, nodeID, req)
 	}
 }

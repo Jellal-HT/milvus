@@ -28,18 +28,17 @@ import (
 type streaming struct {
 	ctx context.Context
 
-	replica           ReplicaInterface
-	historicalReplica ReplicaInterface
-	tSafeReplica      TSafeReplicaInterface
+	replica      ReplicaInterface
+	tSafeReplica TSafeReplicaInterface
 
 	dataSyncService *dataSyncService
 	msFactory       msgstream.Factory
 }
 
-func newStreaming(ctx context.Context, factory msgstream.Factory, etcdKV *etcdkv.EtcdKV, historicalReplica ReplicaInterface) *streaming {
+func newStreaming(ctx context.Context, factory msgstream.Factory, etcdKV *etcdkv.EtcdKV) *streaming {
 	replica := newCollectionReplica(etcdKV)
 	tReplica := newTSafeReplica()
-	newDS := newDataSyncService(ctx, replica, historicalReplica, tReplica, factory)
+	newDS := newDataSyncService(ctx, replica, tReplica, factory)
 
 	return &streaming{
 		replica:         replica,

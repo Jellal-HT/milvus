@@ -66,7 +66,7 @@ func (tr *TimeRecorder) Elapse(msg string) time.Duration {
 
 func (tr *TimeRecorder) printTimeRecord(msg string, span time.Duration) {
 	str := ""
-	if tr.header != "" {
+	if len(tr.header) != 0 {
 		str += tr.header + ": "
 	}
 	str += msg

@@ -3,7 +3,6 @@ import time
 import logging
 import string
 import random
-import json
 from yaml.representer import SafeRepresenter
 # from yaml import full_load, dump
 import yaml
@@ -101,7 +100,6 @@ def get_unique_name(prefix=None):
 
 
 def get_current_time():
-    """ return current time"""
     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
 
@@ -143,12 +141,12 @@ def get_server_tag(deploy_params):
     server_tag = ""
     if deploy_params and "server" in deploy_params:
         server = deploy_params["server"]
+        # server_name = server["server_name"] if "server_name" in server else ""
         server_tag = server["server_tag"] if "server_tag" in server else ""
     return server_tag
 
 
 def search_param_analysis(vector_query, filter_query):
-    """ Search parameter adjustment, applicable pymilvus version >= 2.0.0rc7.dev24 """
 
     if "vector" in vector_query:
         vector = vector_query["vector"]
@@ -186,6 +184,7 @@ def search_param_analysis(vector_query, filter_query):
                         expression = expression + ' && ' + exp2
                     else:
                         expression = exp2
+
         else:
             logger.error("[search_param_analysis] filter_range not dict or len != 1: %s" % str(filter_range))
             return False
@@ -202,9 +201,3 @@ def search_param_analysis(vector_query, filter_query):
     }
     # logger.debug("[search_param_analysis] search_param_analysis: %s" % str(result))
     return result
-
-
-def read_json_file(file_name):
-    with open(file_name) as f:
-        file_dict = json.load(f)
-    return file_dict

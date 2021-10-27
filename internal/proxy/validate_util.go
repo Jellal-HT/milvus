@@ -70,11 +70,11 @@ func ValidateCollectionAlias(collAlias string) error {
 	return validateCollectionNameOrAlias(collAlias, "alias")
 }
 
-func validateCollectionName(collName string) error {
+func ValidateCollectionName(collName string) error {
 	return validateCollectionNameOrAlias(collName, "name")
 }
 
-func validatePartitionTag(partitionTag string, strictCheck bool) error {
+func ValidatePartitionTag(partitionTag string, strictCheck bool) error {
 	partitionTag = strings.TrimSpace(partitionTag)
 
 	invalidMsg := "Invalid partition name: " + partitionTag + ". "
@@ -109,7 +109,7 @@ func validatePartitionTag(partitionTag string, strictCheck bool) error {
 	return nil
 }
 
-func validateFieldName(fieldName string) error {
+func ValidateFieldName(fieldName string) error {
 	fieldName = strings.TrimSpace(fieldName)
 
 	if fieldName == "" {
@@ -140,7 +140,7 @@ func validateFieldName(fieldName string) error {
 	return nil
 }
 
-func validateDimension(dim int64, isBinary bool) error {
+func ValidateDimension(dim int64, isBinary bool) error {
 	if dim <= 0 || dim > Params.MaxDimension {
 		return fmt.Errorf("invalid dimension: %d. should be in range 1 ~ %d", dim, Params.MaxDimension)
 	}
@@ -150,7 +150,7 @@ func validateDimension(dim int64, isBinary bool) error {
 	return nil
 }
 
-func validateVectorFieldMetricType(field *schemapb.FieldSchema) error {
+func ValidateVectorFieldMetricType(field *schemapb.FieldSchema) error {
 	if (field.DataType != schemapb.DataType_FloatVector) && (field.DataType != schemapb.DataType_BinaryVector) {
 		return nil
 	}
@@ -162,7 +162,7 @@ func validateVectorFieldMetricType(field *schemapb.FieldSchema) error {
 	return errors.New("vector float without metric_type")
 }
 
-func validateDuplicatedFieldName(fields []*schemapb.FieldSchema) error {
+func ValidateDuplicatedFieldName(fields []*schemapb.FieldSchema) error {
 	names := make(map[string]bool)
 	for _, field := range fields {
 		_, ok := names[field.Name]
@@ -174,7 +174,7 @@ func validateDuplicatedFieldName(fields []*schemapb.FieldSchema) error {
 	return nil
 }
 
-//ValidateFieldAutoID call after validatePrimaryKey
+//ValidateFieldAutoID call after ValidatePrimaryKey
 func ValidateFieldAutoID(coll *schemapb.CollectionSchema) error {
 	var idx = -1
 	for i, field := range coll.Fields {
@@ -191,7 +191,7 @@ func ValidateFieldAutoID(coll *schemapb.CollectionSchema) error {
 	return nil
 }
 
-func validatePrimaryKey(coll *schemapb.CollectionSchema) error {
+func ValidatePrimaryKey(coll *schemapb.CollectionSchema) error {
 	idx := -1
 	for i, field := range coll.Fields {
 		if field.IsPrimaryKey {
@@ -237,7 +237,7 @@ func isVector(dataType schemapb.DataType) (bool, error) {
 	return false, fmt.Errorf("invalid data type: %d", dataType)
 }
 
-func validateMetricType(dataType schemapb.DataType, metricTypeStrRaw string) error {
+func ValidateMetricType(dataType schemapb.DataType, metricTypeStrRaw string) error {
 	metricTypeStr := strings.ToUpper(metricTypeStrRaw)
 	switch metricTypeStr {
 	case "L2", "IP":
@@ -252,7 +252,7 @@ func validateMetricType(dataType schemapb.DataType, metricTypeStrRaw string) err
 	return fmt.Errorf("data_type %s mismatch with metric_type %s", dataType.String(), metricTypeStrRaw)
 }
 
-func validateSchema(coll *schemapb.CollectionSchema) error {
+func ValidateSchema(coll *schemapb.CollectionSchema) error {
 	autoID := coll.AutoID
 	primaryIdx := -1
 	idMap := make(map[int64]int)    // fieldId -> idx
@@ -313,7 +313,7 @@ func validateSchema(coll *schemapb.CollectionSchema) error {
 
 			metricTypeStr, ok := indexKv["metric_type"]
 			if ok {
-				err4 := validateMetricType(field.DataType, metricTypeStr)
+				err4 := ValidateMetricType(field.DataType, metricTypeStr)
 				if err4 != nil {
 					return err4
 				}

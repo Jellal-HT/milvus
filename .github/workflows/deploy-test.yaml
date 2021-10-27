@@ -91,7 +91,7 @@ jobs:
           pip install --upgrade protobuf          
       
       - name: First Milvus Deployment
-        timeout-minutes: 60
+        timeout-minutes: 15
         shell: bash
         working-directory: tests/python_client/deploy     
         run: |
@@ -117,7 +117,6 @@ jobs:
 
 
           # uninstall milvus
-          if [[ $(date +%w) -eq 0 || $(data +%w) -eq 6 ]]; then sleep 1800s; fi
           helm uninstall deploy-testing
       
       - name: Seconde Milvus Deployment

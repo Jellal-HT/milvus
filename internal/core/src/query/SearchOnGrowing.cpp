@@ -15,7 +15,7 @@
 #include "segcore/Reduce.h"
 
 #include <faiss/utils/distances.h>
-#include "utils/Utils.h"
+#include "utils/tools.h"
 #include "query/SearchBruteForce.h"
 #include "query/SearchOnIndex.h"
 

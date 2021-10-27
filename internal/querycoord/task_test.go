@@ -153,7 +153,6 @@ func genWatchDmChannelTask(ctx context.Context, queryCoord *QueryCoord, nodeID i
 	}
 	baseParentTask := newBaseTask(ctx, querypb.TriggerCondition_grpcRequest)
 	baseParentTask.taskID = 10
-	baseParentTask.setState(taskDone)
 	parentTask := &loadCollectionTask{
 		baseTask:              baseParentTask,
 		LoadCollectionRequest: parentReq,
@@ -181,9 +180,9 @@ func genLoadSegmentTask(ctx context.Context, queryCoord *QueryCoord, nodeID int6
 		Base: &commonpb.MsgBase{
 			MsgType: commonpb.MsgType_LoadSegments,
 		},
-		DstNodeID: nodeID,
-		Schema:    schema,
-		Infos:     []*querypb.SegmentLoadInfo{segmentInfo},
+		NodeID: nodeID,
+		Schema: schema,
+		Infos:  []*querypb.SegmentLoadInfo{segmentInfo},
 	}
 	baseTask := newBaseTask(ctx, querypb.TriggerCondition_grpcRequest)
 	baseTask.taskID = 100
@@ -204,7 +203,6 @@ func genLoadSegmentTask(ctx context.Context, queryCoord *QueryCoord, nodeID int6
 	}
 	baseParentTask := newBaseTask(ctx, querypb.TriggerCondition_grpcRequest)
 	baseParentTask.taskID = 10
-	baseParentTask.setState(taskDone)
 	parentTask := &loadCollectionTask{
 		baseTask:              baseParentTask,
 		LoadCollectionRequest: parentReq,
@@ -658,7 +656,7 @@ func Test_RescheduleDmChannelsEndWithFail(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func Test_AssignInternalTask(t *testing.T) {
+func Test_assignInternalTask(t *testing.T) {
 	refreshParams()
 	ctx := context.Background()
 	queryCoord, err := startQueryCoord(ctx)
@@ -676,7 +674,7 @@ func Test_AssignInternalTask(t *testing.T) {
 		FieldID: 0,
 		Binlogs: []string{funcutil.RandomString(1000)},
 	})
-	for id := 0; id < 3000; id++ {
+	for id := 0; id < 10000; id++ {
 		segmentInfo := &querypb.SegmentLoadInfo{
 			SegmentID:    UniqueID(id),
 			PartitionID:  defaultPartitionID,
@@ -687,9 +685,9 @@ func Test_AssignInternalTask(t *testing.T) {
 			Base: &commonpb.MsgBase{
 				MsgType: commonpb.MsgType_LoadSegments,
 			},
-			DstNodeID: node1.queryNodeID,
-			Schema:    schema,
-			Infos:     []*querypb.SegmentLoadInfo{segmentInfo},
+			NodeID: node1.queryNodeID,
+			Schema: schema,
+			Infos:  []*querypb.SegmentLoadInfo{segmentInfo},
 		}
 		loadSegmentRequests = append(loadSegmentRequests, req)
 	}
@@ -698,91 +696,6 @@ func Test_AssignInternalTask(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.NotEqual(t, 1, len(loadCollectionTask.getChildTask()))
-
-	queryCoord.Stop()
-	err = removeAllSession()
-	assert.Nil(t, err)
-}
-
-func Test_reverseSealedSegmentChangeInfo(t *testing.T) {
-	refreshParams()
-	ctx := context.Background()
-	queryCoord, err := startQueryCoord(ctx)
-	assert.Nil(t, err)
-
-	node1, err := startQueryNodeServer(ctx)
-	assert.Nil(t, err)
-	waitQueryNodeOnline(queryCoord.cluster, node1.queryNodeID)
-
-	loadCollectionTask := genLoadCollectionTask(ctx, queryCoord)
-	queryCoord.scheduler.Enqueue(loadCollectionTask)
-	waitTaskFinalState(loadCollectionTask, taskExpired)
-
-	node2, err := startQueryNodeServer(ctx)
-	assert.Nil(t, err)
-	waitQueryNodeOnline(queryCoord.cluster, node2.queryNodeID)
-
-	loadSegmentTask := genLoadSegmentTask(ctx, queryCoord, node2.queryNodeID)
-	parentTask := loadSegmentTask.parentTask
-
-	kv := &testKv{
-		returnFn: failedResult,
-	}
-	queryCoord.meta.setKvClient(kv)
-
-	err = updateSegmentInfoFromTask(ctx, parentTask, queryCoord.meta)
-	assert.NotNil(t, err)
-
-	queryCoord.Stop()
-	err = removeAllSession()
-	assert.Nil(t, err)
-}
-
-func Test_handoffSegmentFail(t *testing.T) {
-	refreshParams()
-	ctx := context.Background()
-	queryCoord, err := startQueryCoord(ctx)
-	assert.Nil(t, err)
-
-	node1, err := startQueryNodeServer(ctx)
-	assert.Nil(t, err)
-	waitQueryNodeOnline(queryCoord.cluster, node1.queryNodeID)
-
-	loadCollectionTask := genLoadCollectionTask(ctx, queryCoord)
-	err = queryCoord.scheduler.Enqueue(loadCollectionTask)
-	assert.Nil(t, err)
-	waitTaskFinalState(loadCollectionTask, taskExpired)
-
-	node1.loadSegment = returnFailedResult
-
-	infos := queryCoord.meta.showSegmentInfos(defaultCollectionID, nil)
-	assert.NotEqual(t, 0, len(infos))
-	segmentID := defaultSegmentID + 4
-	baseTask := newBaseTask(ctx, querypb.TriggerCondition_handoff)
-
-	segmentInfo := &querypb.SegmentInfo{
-		SegmentID:    segmentID,
-		CollectionID: defaultCollectionID,
-		PartitionID:  defaultPartitionID + 2,
-		SegmentState: querypb.SegmentState_sealed,
-	}
-	handoffReq := &querypb.HandoffSegmentsRequest{
-		Base: &commonpb.MsgBase{
-			MsgType: commonpb.MsgType_HandoffSegments,
-		},
-		SegmentInfos: []*querypb.SegmentInfo{segmentInfo},
-	}
-	handoffTask := &handoffTask{
-		baseTask:               baseTask,
-		HandoffSegmentsRequest: handoffReq,
-		dataCoord:              queryCoord.dataCoordClient,
-		cluster:                queryCoord.cluster,
-		meta:                   queryCoord.meta,
-	}
-	err = queryCoord.scheduler.Enqueue(handoffTask)
-	assert.Nil(t, err)
-
-	waitTaskFinalState(handoffTask, taskFailed)
 
 	queryCoord.Stop()
 	err = removeAllSession()

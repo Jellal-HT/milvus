@@ -222,8 +222,6 @@ func (q *queryCollection) waitNewTSafe() (Timestamp, error) {
 	for !q.tSafeUpdate {
 		q.watcherCond.Wait()
 	}
-	q.tSafeUpdate = false
-	q.watcherCond.Broadcast()
 	q.watcherCond.L.Unlock()
 	q.tSafeWatchersMu.RLock()
 	defer q.tSafeWatchersMu.RUnlock()
@@ -288,6 +286,8 @@ func (q *queryCollection) consumeQuery() {
 					if err != nil {
 						log.Warn(err.Error())
 					}
+				case *msgstream.LoadBalanceSegmentsMsg:
+					q.loadBalance(sm)
 				case *msgstream.RetrieveMsg:
 					err := q.receiveQueryMsg(sm)
 					if err != nil {
@@ -307,37 +307,58 @@ func (q *queryCollection) consumeQuery() {
 	}
 }
 
+func (q *queryCollection) loadBalance(msg *msgstream.LoadBalanceSegmentsMsg) {
+	//TODO:: get loadBalance info from etcd
+}
+
 func (q *queryCollection) adjustByChangeInfo(msg *msgstream.SealedSegmentsChangeInfoMsg) error {
-	for _, info := range msg.Infos {
-		// for OnlineSegments:
-		for _, segment := range info.OnlineSegments {
-			// 1. update global sealed segments
-			err := q.globalSegmentManager.addGlobalSegmentInfo(segment)
+	// for OnlineSegments:
+	for _, segment := range msg.OnlineSegments {
+		// 1. update global sealed segments
+		err := q.globalSegmentManager.addGlobalSegmentInfo(segment)
+		if err != nil {
+			return err
+		}
+		// 2. update excluded segment, cluster have been loaded sealed segments,
+		// so we need to avoid getting growing segment from flow graph.
+		q.streaming.replica.addExcludedSegments(segment.CollectionID, []*datapb.SegmentInfo{
+			{
+				ID:            segment.SegmentID,
+				CollectionID:  segment.CollectionID,
+				PartitionID:   segment.PartitionID,
+				InsertChannel: segment.ChannelID,
+				NumOfRows:     segment.NumRows,
+				// TODO: add status, remove query pb segment status, use common pb segment status?
+				DmlPosition: &internalpb.MsgPosition{
+					// use max timestamp to filter out dm messages
+					Timestamp: math.MaxInt64,
+				},
+			},
+		})
+		// 3. delete growing segment because these segments are loaded
+		hasGrowingSegment := q.streaming.replica.hasSegment(segment.SegmentID)
+		if hasGrowingSegment {
+			err = q.streaming.replica.removeSegment(segment.SegmentID)
 			if err != nil {
 				return err
 			}
-			// 2. update excluded segment, cluster have been loaded sealed segments,
-			// so we need to avoid getting growing segment from flow graph.
-			q.streaming.replica.addExcludedSegments(segment.CollectionID, []*datapb.SegmentInfo{
-				{
-					ID:            segment.SegmentID,
-					CollectionID:  segment.CollectionID,
-					PartitionID:   segment.PartitionID,
-					InsertChannel: segment.ChannelID,
-					NumOfRows:     segment.NumRows,
-					// TODO: add status, remove query pb segment status, use common pb segment status?
-					DmlPosition: &internalpb.MsgPosition{
-						// use max timestamp to filter out dm messages
-						Timestamp: typeutil.MaxTimestamp,
-					},
-				},
-			})
+			log.Debug("remove growing segment in adjustByChangeInfo",
+				zap.Any("collectionID", q.collectionID),
+				zap.Any("segmentID", segment.SegmentID),
+			)
 		}
+	}
 
-		// for OfflineSegments:
-		for _, segment := range info.OfflineSegments {
-			// 1. update global sealed segments
-			q.globalSegmentManager.removeGlobalSegmentInfo(segment.SegmentID)
+	// for OfflineSegments:
+	for _, segment := range msg.OfflineSegments {
+		// 1. update global sealed segments
+		q.globalSegmentManager.removeGlobalSegmentInfo(segment.SegmentID)
+		// 2. load balance, remove old sealed segments
+		if msg.OfflineNodeID == Params.QueryNodeID {
+			err := q.historical.replica.removeSegment(segment.SegmentID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -512,7 +533,7 @@ func (q *queryCollection) doUnsolvedQueryMsg() {
 					zap.Any("guaranteeTime_l", guaranteeTs),
 					zap.Any("serviceTime_l", serviceTime),
 				)
-				if guaranteeTs <= q.getServiceableTime() {
+				if guaranteeTs <= serviceTime {
 					unSolvedMsg = append(unSolvedMsg, m)
 					continue
 				}

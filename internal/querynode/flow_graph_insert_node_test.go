@@ -69,13 +69,11 @@ func genFlowGraphDeleteData() (*deleteData, error) {
 
 func TestFlowGraphInsertNode_insert(t *testing.T) {
 	t.Run("test insert", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -92,13 +90,11 @@ func TestFlowGraphInsertNode_insert(t *testing.T) {
 	})
 
 	t.Run("test segment insert error", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -116,24 +112,20 @@ func TestFlowGraphInsertNode_insert(t *testing.T) {
 	})
 
 	t.Run("test no target segment", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		insertNode.insert(nil, defaultSegmentID, wg)
 	})
 
 	t.Run("test invalid segmentType", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -149,13 +141,11 @@ func TestFlowGraphInsertNode_insert(t *testing.T) {
 
 func TestFlowGraphInsertNode_delete(t *testing.T) {
 	t.Run("test insert and delete", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -177,13 +167,11 @@ func TestFlowGraphInsertNode_delete(t *testing.T) {
 	})
 
 	t.Run("test only delete", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -199,13 +187,11 @@ func TestFlowGraphInsertNode_delete(t *testing.T) {
 	})
 
 	t.Run("test segment delete error", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -222,11 +208,9 @@ func TestFlowGraphInsertNode_delete(t *testing.T) {
 	})
 
 	t.Run("test no target segment", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		insertNode.delete(nil, defaultSegmentID, wg)
@@ -235,13 +219,11 @@ func TestFlowGraphInsertNode_delete(t *testing.T) {
 
 func TestFlowGraphInsertNode_operate(t *testing.T) {
 	t.Run("test operate", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -263,7 +245,7 @@ func TestFlowGraphInsertNode_operate(t *testing.T) {
 		}
 		msg := []flowgraph.Msg{&iMsg}
 		insertNode.Operate(msg)
-		s, err := streaming.getSegmentByID(defaultSegmentID)
+		s, err := replica.getSegmentByID(defaultSegmentID)
 		assert.Nil(t, err)
 		buf := make([]byte, 8)
 		for i := 0; i < defaultMsgLength; i++ {
@@ -274,13 +256,11 @@ func TestFlowGraphInsertNode_operate(t *testing.T) {
 	})
 
 	t.Run("test invalid partitionID", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -302,13 +282,11 @@ func TestFlowGraphInsertNode_operate(t *testing.T) {
 	})
 
 	t.Run("test collection partition not exist", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -330,13 +308,11 @@ func TestFlowGraphInsertNode_operate(t *testing.T) {
 	})
 
 	t.Run("test partition not exist", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -357,13 +333,11 @@ func TestFlowGraphInsertNode_operate(t *testing.T) {
 	})
 
 	t.Run("test invalid input length", func(t *testing.T) {
-		streaming, err := genSimpleReplica()
+		replica, err := genSimpleReplica()
 		assert.NoError(t, err)
-		historical, err := genSimpleReplica()
-		assert.NoError(t, err)
-		insertNode := newInsertNode(streaming, historical)
+		insertNode := newInsertNode(replica)
 
-		err = streaming.addSegment(defaultSegmentID,
+		err = replica.addSegment(defaultSegmentID,
 			defaultPartitionID,
 			defaultCollectionID,
 			defaultVChannel,
@@ -399,13 +373,13 @@ func TestGetSegmentsByPKs(t *testing.T) {
 		segmentID: 1,
 		pkFilter:  filter,
 	}
-	pks, err := filterSegmentsByPKs([]int64{0, 1, 2, 3, 4}, segment)
+	exist, err := filterSegmentsByPKs([]int64{0, 1, 2, 3, 4}, segment)
 	assert.Nil(t, err)
-	assert.Equal(t, len(pks), 1)
+	assert.True(t, exist)
 
-	pks, err = filterSegmentsByPKs([]int64{}, segment)
+	exist, err = filterSegmentsByPKs([]int64{}, segment)
 	assert.Nil(t, err)
-	assert.Equal(t, len(pks), 0)
+	assert.False(t, exist)
 	_, err = filterSegmentsByPKs(nil, segment)
 	assert.NotNil(t, err)
 	_, err = filterSegmentsByPKs([]int64{0, 1, 2, 3, 4}, nil)

@@ -50,7 +50,6 @@ type flushTaskRunner struct {
 
 	startSignal  <-chan struct{}
 	finishSignal chan struct{}
-	injectSignal <-chan taskInjection
 
 	segmentID  UniqueID
 	insertLogs map[UniqueID]string
@@ -58,12 +57,6 @@ type flushTaskRunner struct {
 	deltaLogs  []*DelDataBuf
 	pos        *internalpb.MsgPosition
 	flushed    bool
-}
-
-type taskInjection struct {
-	injected      chan struct{} // channel to notify injected
-	injectOver    chan bool     // indicates injection over
-	postInjection func(pack *segmentFlushPack)
 }
 
 // init initializes flushTaskRunner with provided actions and signal
@@ -116,23 +109,7 @@ func (t *flushTaskRunner) waitFinish(notifyFunc notifyMetaFunc, postFunc taskPos
 	t.Wait()
 	// wait previous task done
 	<-t.startSignal
-
 	pack := t.getFlushPack()
-	var postInjection postInjectionFunc = nil
-	select {
-	case injection := <-t.injectSignal:
-		// notify injected
-		injection.injected <- struct{}{}
-		ok := <-injection.injectOver
-		if ok {
-			// apply postInjection func
-			postInjection = injection.postInjection
-		}
-	default:
-	}
-	postFunc(pack, postInjection)
-
-	// execution done, dequeue and make count --
 	err := errStart
 	for err != nil {
 		err = notifyFunc(pack)
@@ -140,6 +117,7 @@ func (t *flushTaskRunner) waitFinish(notifyFunc notifyMetaFunc, postFunc taskPos
 
 	// notify next task
 	close(t.finishSignal)
+	postFunc()
 }
 
 func (t *flushTaskRunner) getFlushPack() *segmentFlushPack {
@@ -156,11 +134,10 @@ func (t *flushTaskRunner) getFlushPack() *segmentFlushPack {
 }
 
 // newFlushTaskRunner create a usable task runner
-func newFlushTaskRunner(segmentID UniqueID, injectCh <-chan taskInjection) *flushTaskRunner {
+func newFlushTaskRunner(segmentID UniqueID) *flushTaskRunner {
 	t := &flushTaskRunner{
-		WaitGroup:    sync.WaitGroup{},
-		segmentID:    segmentID,
-		injectSignal: injectCh,
+		WaitGroup: sync.WaitGroup{},
+		segmentID: segmentID,
 	}
 	// insert & del
 	t.Add(2)

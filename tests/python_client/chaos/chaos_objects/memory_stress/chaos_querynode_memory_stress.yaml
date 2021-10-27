@@ -1,7 +1,7 @@
 kind: StressChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
-  name: test-querynode-memory-stress
+  name: test-pod-memory-stress
   namespace: chaos-testing
 spec:
   selector:

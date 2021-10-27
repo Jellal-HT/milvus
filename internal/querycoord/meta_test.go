@@ -12,7 +12,6 @@
 package querycoord
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -38,10 +37,6 @@ func (tk *testKv) Save(key, value string) error {
 	return tk.returnFn()
 }
 
-func (tk *testKv) MultiSave(saves map[string]string) error {
-	return tk.returnFn()
-}
-
 func (tk *testKv) Remove(key string) error {
 	return tk.returnFn()
 }
@@ -54,7 +49,7 @@ func TestReplica_Release(t *testing.T) {
 	refreshParams()
 	etcdKV, err := etcdkv.NewEtcdKV(Params.EtcdEndpoints, Params.MetaRootPath)
 	assert.Nil(t, err)
-	meta, err := newMeta(context.Background(), etcdKV, nil, nil)
+	meta, err := newMeta(etcdKV)
 	assert.Nil(t, err)
 	err = meta.addCollection(1, nil)
 	require.NoError(t, err)
@@ -115,6 +110,11 @@ func TestMetaFunc(t *testing.T) {
 		assert.Equal(t, false, hasReleasePartition)
 	})
 
+	t.Run("Test HasSegmentInfoFalse", func(t *testing.T) {
+		hasSegmentInfo := meta.hasSegmentInfo(defaultSegmentID)
+		assert.Equal(t, false, hasSegmentInfo)
+	})
+
 	t.Run("Test GetSegmentInfoByIDFail", func(t *testing.T) {
 		res, err := meta.getSegmentInfoByID(defaultSegmentID)
 		assert.NotNil(t, err)
@@ -129,8 +129,8 @@ func TestMetaFunc(t *testing.T) {
 
 	t.Run("Test GetQueryChannelInfoByIDFail", func(t *testing.T) {
 		res, err := meta.getQueryChannelInfoByID(defaultCollectionID)
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
+		assert.NotNil(t, err)
+		assert.Nil(t, res)
 	})
 
 	t.Run("Test GetPartitionStatesByIDFail", func(t *testing.T) {
@@ -222,9 +222,7 @@ func TestMetaFunc(t *testing.T) {
 			CollectionID: defaultCollectionID,
 			NodeID:       nodeID,
 		}
-		segmentInfos := make(map[UniqueID]*querypb.SegmentInfo)
-		segmentInfos[defaultSegmentID] = info
-		err := meta.setSegmentInfos(segmentInfos)
+		err := meta.setSegmentInfo(defaultSegmentID, info)
 		assert.Nil(t, err)
 	})
 
@@ -235,9 +233,9 @@ func TestMetaFunc(t *testing.T) {
 	})
 
 	t.Run("Test getQueryChannel", func(t *testing.T) {
-		info, err := meta.getQueryChannelInfoByID(defaultCollectionID)
-		assert.NotNil(t, info.QueryChannelID)
-		assert.NotNil(t, info.QueryResultChannelID)
+		reqChannel, resChannel, err := meta.getQueryChannel(defaultCollectionID)
+		assert.NotNil(t, reqChannel)
+		assert.NotNil(t, resChannel)
 		assert.Nil(t, err)
 	})
 

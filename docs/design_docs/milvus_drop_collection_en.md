@@ -1,13 +1,11 @@
 # Drop Collection
-
 `Milvus 2.0` uses `Collection` to represent a set of data, like `Table` in traditional database. Users can create or drop `Collection`. Altering the `Schema` of `Collection` is not supported yet. This article introduces the execution path of `Drop Collection`. At the end of this article, you should know which components are involved in `Drop Collection`.
 
 The execution flow of `Drop Collection` is shown in the following figure:
 
 ![drop_collection](./graphs/dml_drop_collection.png)
 
-1. Firstly, `SDK` sends a `DropCollection` request to `Proxy` via `Grpc`, the `proto` is defined as follows:
-
+1. Firstly, `SDK` starts a `DropCollection` request to `Proxy` via `Grpc`, the `proto` is defined as follows:
 ```proto
 service MilvusService {
     ...
@@ -24,8 +22,7 @@ message DropCollectionRequest {
 }
 ```
 
-2. Once the `DropCollection` request is received, the `Proxy` would wrap this request into `DropCollectionTask`, and push this task into `DdTaskQueue` queue. After that, `Proxy` would call `WatiToFinish` method to wait until the task is finished.
-
+2. Once the `DropCollection` request is received, the `Proxy` would wrap this request into `DropCollectionTask`, and push this task into `DdTaskQueue` queue. After that, `Proxy` would call method of `WatiToFinish` to wait until the task is finished.
 ```go
 type task interface {
 	TraceCtx() context.Context
@@ -56,24 +53,20 @@ type DropCollectionTask struct {
 ```
 
 3. There is a background service in `Proxy`, this service would get the `DropCollectionTask` from `DdTaskQueue`, and execute it in three phases:
+    - `PreExecute`, do some static checking at this phase, such as check if `Collection Name` is legal etc.
+    - `Execute`, at this phase, `Proxy` would send `DropCollection` request to `RootCoord` via `Grpc`, and wait the response, the `proto` is defined as below:
+    ```proto
+        service RootCoord {
+          ...
 
-   - `PreExecute`, do some static checking at this phase, such as check if `Collection Name` is legal etc.
-   - `Execute`, at this phase, `Proxy` would send `DropCollection` request to `RootCoord` via `Grpc`, and wait the response, the `proto` is defined as below:
+           rpc DropCollection(milvus.DropCollectionRequest) returns (common.Status) {}
 
-   ```proto
-       service RootCoord {
-         ...
-
-          rpc DropCollection(milvus.DropCollectionRequest) returns (common.Status) {}
-
-         ...
-       }
-   ```
-
-   - `PostExecute`, `Proxy` would delete `Collection`'s meta from global meta table at this phase.
+          ...
+        }
+    ```
+    - `PostExecute`, `Proxy` would delete `Collection`'s meta from global meta table at this phase.
 
 4. `RootCoord` would wrap the `DropCollection` request into `DropCollectionReqTask`, and then call function `executeTask`. `executeTask` would return until the `context` is done or `DropCollectionReqTask.Execute` is returned.
-
 ```go
 type reqTask interface {
 	Ctx() context.Context
@@ -95,7 +88,6 @@ type DropCollectionReqTask struct {
 7. `RootCoord` would alloc a timestamp from `TSO` before deleting `Collection`'s meta from `metaTable`. This timestamp is considered as the point when the collection was deleted.
 
 8. `RootCoord` would send a message of `DropCollectionRequest` into `MsgStream`. Thus other components, who have subscribed to the `MsgStream`, would be notified. The `Proto` of `DropCollectionRequest` is defined as below:
-
 ```proto
 message DropCollectionRequest {
   common.MsgBase base = 1;
@@ -110,7 +102,6 @@ message DropCollectionRequest {
 9. After these operations, `RootCoord` would update internal timestamp.
 
 10. Then `RootCoord` would start a `ReleaseCollection` request to `QueryCoord` via `Grpc` , notify `QueryCoord` to release all resources that related to this `Collection`. This `Grpc` request is done in another `goroutine`, so it would not block the main thread. The `proto` is defined as follows:
-
 ```proto
 service QueryCoord {
     ...
@@ -129,7 +120,6 @@ message ReleaseCollectionRequest {
 ```
 
 11. At last, `RootCoord` would send `InvalidateCollectionMetaCache` request to each `Proxy`, notify `Proxy` to remove `Collection`'s meta. The `proto` is defined as follows:
-
 ```proto
 service Proxy {
     ...
@@ -153,39 +143,33 @@ message InvalidateCollMetaCacheRequest {
 13. `QueryCoord` would wrap `ReleaseCollection` into `ReleaseCollectionTask`, and push the task into `TaskScheduler`
 
 14. There is a background service in `QueryCoord`. This service would get the `ReleaseCollectionTask` from `TaskScheduler`, and execute it in three phases:
-
     - `PreExecute`, `ReleaseCollectionTask` would only print debug log at this phase.
     - `Execute`, there are two jobs at this phase:
+        - send a `ReleaseDQLMessageStream` request to `RootCoord` via `Grpc`, `RootCoord` would redirect the `ReleaseDQLMessageStream` request to each `Proxy`, and notify the `Proxy` that stop processing any message of this `Collection` anymore. The `proto` is defined as follows:
+        ```proto
+            message ReleaseDQLMessageStreamRequest {
+                common.MsgBase base = 1;
+                int64 dbID = 2;
+                int64 collectionID = 3;
+            }
+        ```
+        - send a `ReleaseCollection` request to each `QueryNode` via `Grpc`, and notify the `QueryNode` to release all the resources related to this `Collection`, including `Index`, `Segment`, `FlowGraph`, etc. `QueryNode` would no longer read any message from this `Collection`'s `MsgStream` anymore  
+        ```proto
+            service QueryNode {
+                ...
 
-      - send a `ReleaseDQLMessageStream` request to `RootCoord` via `Grpc`, `RootCoord` would redirect the `ReleaseDQLMessageStream` request to each `Proxy`, and notify the `Proxy` that stop processing any message of this `Collection` anymore. The `proto` is defined as follows:
+                rpc ReleaseCollection(ReleaseCollectionRequest) returns (common.Status) {}
 
-      ```proto
-          message ReleaseDQLMessageStreamRequest {
-              common.MsgBase base = 1;
-              int64 dbID = 2;
-              int64 collectionID = 3;
-          }
-      ```
+                ...
+            }
 
-      - send a `ReleaseCollection` request to each `QueryNode` via `Grpc`, and notify the `QueryNode` to release all the resources related to this `Collection`, including `Index`, `Segment`, `FlowGraph`, etc. `QueryNode` would no longer read any message from this `Collection`'s `MsgStream` anymore
-
-      ```proto
-          service QueryNode {
-              ...
-
-              rpc ReleaseCollection(ReleaseCollectionRequest) returns (common.Status) {}
-
-              ...
-          }
-
-          message ReleaseCollectionRequest {
-              common.MsgBase base = 1;
-              int64 dbID = 2;
-              int64 collectionID = 3;
-              int64 nodeID = 4;
-          }
-      ```
-
+            message ReleaseCollectionRequest {
+                common.MsgBase base = 1;
+                int64 dbID = 2;
+                int64 collectionID = 3;
+                int64 nodeID = 4;
+            }
+        ```
     - `PostExecute`, `ReleaseCollectionTask` would only print debug log at this phase.
 
 15. After these operations, `QueryCoord` would send `ReleaseCollection`'s response to `RootCoord`.
@@ -196,7 +180,6 @@ message InvalidateCollMetaCacheRequest {
 
 17. In `DataNode`, each `MsgStream` will have a `FlowGraph`, which processes all messages. When the `DataNode` receives the message of `DropCollectionRequest`, `DataNode` would notify `BackGroundGC`, which is a background service on `DataNode`, to release resources.
 
-_Notes_:
-
+*Notes*:
 1. Currently, the `DataCoord` doesn't have response to the `DropCollection`. So the `Collection`'s `segment meta` still exists in the `DataCoord`'s `metaTable`, and the `Binlog` files belonging to this `Collection` still exist in the persistent storage.
 2. Currently, the `IndexCoord` doesn't have response to the `DropCollection`. So the `Collection`'s `index file` still exists in the persistent storage.

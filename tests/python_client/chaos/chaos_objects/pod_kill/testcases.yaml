@@ -1,12 +1,12 @@
-# Pod Kill Testcases All-in-one
+# Testcases All-in-one
 #   pod kill
 #     standalone
-#       todo
+#       3 pods(standalone-ha-blabla, etcd, minio)
 #     cluster-1-node
 #       11 pods(proxy, rootcoord, querynode, querycoord, datanode, datacoord,
 #               indexnode, indexcoord, pulsar, etcd, minio)
 #     cluster-n-nodes
-#       todo
+#       11 pods* n: kill one and kill all
 
 Collections:
   -

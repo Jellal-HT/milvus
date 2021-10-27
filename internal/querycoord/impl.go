@@ -62,8 +62,6 @@ func (qc *QueryCoord) GetTimeTickChannel(ctx context.Context) (*milvuspb.StringR
 	}, nil
 }
 
-// GetStatisticsChannel return the statistics channel
-// Statistics channel contains statistics infos of query nodes, such as segment infos, memory infos
 func (qc *QueryCoord) GetStatisticsChannel(ctx context.Context) (*milvuspb.StringResponse, error) {
 	return &milvuspb.StringResponse{
 		Status: &commonpb.Status{
@@ -449,7 +447,7 @@ func (qc *QueryCoord) CreateQueryChannel(ctx context.Context, req *querypb.Creat
 	}
 
 	collectionID := req.CollectionID
-	info, err := qc.meta.getQueryChannelInfoByID(collectionID)
+	queryChannel, queryResultChannel, err := qc.meta.getQueryChannel(collectionID)
 	if err != nil {
 		status.ErrorCode = commonpb.ErrorCode_UnexpectedError
 		status.Reason = err.Error()
@@ -461,8 +459,8 @@ func (qc *QueryCoord) CreateQueryChannel(ctx context.Context, req *querypb.Creat
 
 	return &querypb.CreateQueryChannelResponse{
 		Status:         status,
-		RequestChannel: info.QueryChannelID,
-		ResultChannel:  info.QueryResultChannelID,
+		RequestChannel: queryChannel,
+		ResultChannel:  queryResultChannel,
 	}, nil
 }
 

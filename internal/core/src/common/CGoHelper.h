@@ -9,13 +9,9 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 // or implied. See the License for the specific language governing permissions and limitations under the License
 
-#pragma once
-
-#include <string>
 #include "common/type_c.h"
-
+#include <string>
 namespace milvus {
-
 inline CProtoResult
 AllocCProtoResult(const google::protobuf::Message& msg) {
     auto size = msg.ByteSize();

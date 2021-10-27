@@ -366,7 +366,8 @@ func (c *Core) checkFlushedSegments(ctx context.Context) {
 						if info.BuildID != 0 {
 							info.EnableIndex = true
 						}
-						if err := c.MetaTable.AddIndex(&info); err != nil {
+						ts, _ := c.TSOAllocator(1)
+						if err := c.MetaTable.AddIndex(&info, ts); err != nil {
 							log.Debug("Add index into meta table failed",
 								zap.Int64("collection_id", collMeta.ID),
 								zap.Int64("index_id", info.IndexID),
@@ -402,7 +403,7 @@ func (c *Core) getSegments(ctx context.Context, collID typeutil.UniqueID) (map[t
 }
 
 func (c *Core) setDdMsgSendFlag(b bool) error {
-	flag, err := c.MetaTable.txn.Load(DDMsgSendPrefix)
+	flag, err := c.MetaTable.client.Load(DDMsgSendPrefix, 0)
 	if err != nil {
 		return err
 	}
@@ -412,7 +413,8 @@ func (c *Core) setDdMsgSendFlag(b bool) error {
 		return nil
 	}
 
-	err = c.MetaTable.txn.Save(DDMsgSendPrefix, strconv.FormatBool(b))
+	ts, _ := c.TSOAllocator(1)
+	err = c.MetaTable.client.Save(DDMsgSendPrefix, strconv.FormatBool(b), ts)
 	return err
 }
 
@@ -874,7 +876,7 @@ func (c *Core) Init() error {
 				log.Error("RootCoord, Failed to new suffixSnapshot", zap.Error(initError))
 				return initError
 			}
-			if c.MetaTable, initError = NewMetaTable(metaKV, ss); initError != nil {
+			if c.MetaTable, initError = NewMetaTable(ss); initError != nil {
 				log.Error("RootCoord, Failed to new MetaTable", zap.Any("reason", initError))
 				return initError
 			}
@@ -967,14 +969,14 @@ func (c *Core) Init() error {
 
 func (c *Core) reSendDdMsg(ctx context.Context, force bool) error {
 	if !force {
-		flag, err := c.MetaTable.txn.Load(DDMsgSendPrefix)
+		flag, err := c.MetaTable.client.Load(DDMsgSendPrefix, 0)
 		if err != nil || flag == "true" {
 			log.Debug("No un-successful DdMsg")
 			return nil
 		}
 	}
 
-	ddOpStr, err := c.MetaTable.txn.Load(DDOperationPrefix)
+	ddOpStr, err := c.MetaTable.client.Load(DDOperationPrefix, 0)
 	if err != nil {
 		log.Debug("DdOperation key does not exist")
 		return nil
@@ -1935,7 +1937,8 @@ func (c *Core) SegmentFlushCompleted(ctx context.Context, in *datapb.SegmentFlus
 			log.Error("build index fail", zap.Int64("buildid", info.BuildID), zap.Error(err))
 			continue
 		}
-		err = c.MetaTable.AddIndex(&info)
+		ts, _ := c.TSOAllocator(1)
+		err = c.MetaTable.AddIndex(&info, ts)
 		if err != nil {
 			log.Error("AddIndex fail", zap.String("err", err.Error()))
 		}

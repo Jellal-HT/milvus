@@ -9,4 +9,26 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 // or implied. See the License for the specific language governing permissions and limitations under the License.
 
-#include "../../../utils/Json.h"
+#pragma once
+
+#include "nlohmann/json.hpp"
+
+namespace milvus {
+
+using json = nlohmann::json;
+
+#define JSON_NULL_CHECK(json)                                       \
+    do {                                                            \
+        if (json.empty()) {                                         \
+            return Status{SERVER_INVALID_ARGUMENT, "Json is null"}; \
+        }                                                           \
+    } while (false)
+
+#define JSON_OBJECT_CHECK(json)                                                  \
+    do {                                                                         \
+        if (!json.is_object()) {                                                 \
+            return Status{SERVER_INVALID_ARGUMENT, "Json is not a json object"}; \
+        }                                                                        \
+    } while (false)
+
+}  // namespace milvus

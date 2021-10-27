@@ -13,19 +13,12 @@ def setup_logging(config_path=LOG_CONFIG_PATH, default_level=logging.INFO):
     """
     Setup logging configuration
     """
-    print(global_params.log_file_path)
+    print(FILE_NAME)
     try:
         with open(config_path, 'rt') as f:
             log_config = yaml.safe_load(f.read())
-        log_config["handlers"]["info_file_handler"].update({"filename": global_params.log_file_path})
+        log_config["handlers"]["info_file_handler"].update({"filename": FILE_NAME})
         logging.config.dictConfig(log_config)
     except Exception:
-        raise logging.error('Failed to open file', exc_info=True)
-
-
-class GlobalParams:
-    log_file_path = FILE_NAME
-    metric = None
-
-
-global_params = GlobalParams()
+        raise
+        logging.error('Failed to open file', exc_info=True)

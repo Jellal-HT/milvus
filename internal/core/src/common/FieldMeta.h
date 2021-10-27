@@ -10,17 +10,14 @@
 // or implied. See the License for the specific language governing permissions and limitations under the License
 
 #pragma once
-
-#include <optional>
-#include <stdexcept>
-#include <string>
-
 #include "common/Types.h"
-#include "exceptions/EasyAssert.h"
 #include "utils/Status.h"
+#include "exceptions/EasyAssert.h"
+#include <string>
+#include <stdexcept>
+#include <optional>
 
 namespace milvus {
-
 inline int
 datatype_sizeof(DataType data_type, int dim = 1) {
     switch (data_type) {

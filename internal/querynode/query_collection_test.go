@@ -70,15 +70,12 @@ func genSimpleSegmentInfo() *querypb.SegmentInfo {
 }
 
 func genSimpleSealedSegmentsChangeInfo() *querypb.SealedSegmentsChangeInfo {
-	changeInfo := &querypb.SegmentChangeInfo{
+	return &querypb.SealedSegmentsChangeInfo{
+		Base:            genCommonMsgBase(commonpb.MsgType_SealedSegmentsChangeInfo),
 		OnlineNodeID:    Params.QueryNodeID,
 		OnlineSegments:  []*querypb.SegmentInfo{},
 		OfflineNodeID:   Params.QueryNodeID,
 		OfflineSegments: []*querypb.SegmentInfo{},
-	}
-	return &querypb.SealedSegmentsChangeInfo{
-		Base:  genCommonMsgBase(commonpb.MsgType_SealedSegmentsChangeInfo),
-		Infos: []*querypb.SegmentChangeInfo{changeInfo},
 	}
 }
 
@@ -100,7 +97,6 @@ func updateTSafe(queryCollection *queryCollection, timestamp Timestamp) {
 }
 
 func TestQueryCollection_withoutVChannel(t *testing.T) {
-	ctx := context.Background()
 	m := map[string]interface{}{
 		"PulsarAddress":  Params.PulsarAddress,
 		"ReceiveBufSize": 1024,
@@ -138,7 +134,7 @@ func TestQueryCollection_withoutVChannel(t *testing.T) {
 	assert.Nil(t, err)
 
 	//create a streaming
-	streaming := newStreaming(ctx, factory, etcdKV, historical.replica)
+	streaming := newStreaming(context.Background(), factory, etcdKV)
 	err = streaming.replica.addCollection(0, schema)
 	assert.Nil(t, err)
 	err = streaming.replica.addPartition(0, 1)
@@ -290,7 +286,7 @@ func TestQueryCollection_consumeQuery(t *testing.T) {
 		msg := genSimpleSealedSegmentsChangeInfoMsg()
 		simpleInfo := genSimpleSegmentInfo()
 		simpleInfo.CollectionID = 1000
-		msg.Infos[0].OnlineSegments = append(msg.Infos[0].OnlineSegments, simpleInfo)
+		msg.OnlineSegments = append(msg.OnlineSegments, simpleInfo)
 		runConsumeQuery(msg)
 	})
 
@@ -669,19 +665,19 @@ func TestQueryCollection_adjustByChangeInfo(t *testing.T) {
 		qc, err := genSimpleQueryCollection(ctx, cancel)
 		assert.Nil(t, err)
 
-		segmentChangeInfos := genSimpleSealedSegmentsChangeInfoMsg()
+		info := genSimpleSealedSegmentsChangeInfoMsg()
 
 		// test online
-		segmentChangeInfos.Infos[0].OnlineSegments = append(segmentChangeInfos.Infos[0].OnlineSegments, genSimpleSegmentInfo())
-		err = qc.adjustByChangeInfo(segmentChangeInfos)
+		info.OnlineSegments = append(info.OnlineSegments, genSimpleSegmentInfo())
+		err = qc.adjustByChangeInfo(info)
 		assert.NoError(t, err)
 		ids := qc.globalSegmentManager.getGlobalSegmentIDs()
 		assert.Len(t, ids, 1)
 
 		// test offline
-		segmentChangeInfos.Infos[0].OnlineSegments = make([]*querypb.SegmentInfo, 0)
-		segmentChangeInfos.Infos[0].OfflineSegments = append(segmentChangeInfos.Infos[0].OfflineSegments, genSimpleSegmentInfo())
-		err = qc.adjustByChangeInfo(segmentChangeInfos)
+		info.OnlineSegments = make([]*querypb.SegmentInfo, 0)
+		info.OfflineSegments = append(info.OfflineSegments, genSimpleSegmentInfo())
+		err = qc.adjustByChangeInfo(info)
 		assert.NoError(t, err)
 		ids = qc.globalSegmentManager.getGlobalSegmentIDs()
 		assert.Len(t, ids, 0)
@@ -691,13 +687,13 @@ func TestQueryCollection_adjustByChangeInfo(t *testing.T) {
 		qc, err := genSimpleQueryCollection(ctx, cancel)
 		assert.Nil(t, err)
 
-		segmentChangeInfos := genSimpleSealedSegmentsChangeInfoMsg()
+		info := genSimpleSealedSegmentsChangeInfoMsg()
 
 		// test online
 		simpleInfo := genSimpleSegmentInfo()
 		simpleInfo.CollectionID = 1000
-		segmentChangeInfos.Infos[0].OnlineSegments = append(segmentChangeInfos.Infos[0].OnlineSegments, simpleInfo)
-		err = qc.adjustByChangeInfo(segmentChangeInfos)
+		info.OnlineSegments = append(info.OnlineSegments, simpleInfo)
+		err = qc.adjustByChangeInfo(info)
 		assert.Error(t, err)
 	})
 
@@ -708,10 +704,10 @@ func TestQueryCollection_adjustByChangeInfo(t *testing.T) {
 		err = qc.historical.replica.removeSegment(defaultSegmentID)
 		assert.NoError(t, err)
 
-		segmentChangeInfos := genSimpleSealedSegmentsChangeInfoMsg()
-		segmentChangeInfos.Infos[0].OfflineSegments = append(segmentChangeInfos.Infos[0].OfflineSegments, genSimpleSegmentInfo())
+		info := genSimpleSealedSegmentsChangeInfoMsg()
+		info.OfflineSegments = append(info.OfflineSegments, genSimpleSegmentInfo())
 
-		err = qc.adjustByChangeInfo(segmentChangeInfos)
-		assert.Nil(t, err)
+		err = qc.adjustByChangeInfo(info)
+		assert.Error(t, err)
 	})
 }

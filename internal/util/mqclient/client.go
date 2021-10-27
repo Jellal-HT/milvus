@@ -25,7 +25,7 @@ type Client interface {
 	// String to msg ID
 	StringToMsgID(string) (MessageID, error)
 
-	// Deserialize MessageId from a byte array
+	// Bytes to msg ID
 	BytesToMsgID([]byte) (MessageID, error)
 
 	// Close the client and free associated resources

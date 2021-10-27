@@ -129,12 +129,12 @@ func (s *Server) Run() error {
 	if err := s.init(); err != nil {
 		return err
 	}
-	log.Debug("DataNode init done ...")
+	log.Debug("data node init done ...")
 
 	if err := s.start(); err != nil {
 		return err
 	}
-	log.Debug("DataNode start done ...")
+	log.Debug("data node start done ...")
 	return nil
 }
 

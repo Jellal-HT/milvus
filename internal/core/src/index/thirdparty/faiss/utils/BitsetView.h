@@ -24,11 +24,7 @@ class BitsetView {
     BitsetView(const uint8_t* blocks, int64_t size) : blocks_(blocks), size_(size) {
     }
 
-    BitsetView(const ConcurrentBitset& bitset) : size_(bitset.count()) {
-        // memcpy(block_data_.data(), bitset.data(), bitset.size());
-        // blocks_ = block_data_.data();
-        blocks_ = new uint8_t[bitset.size()];
-        memcpy(mutable_data(), bitset.data(), bitset.size());
+    BitsetView(const ConcurrentBitset& bitset) : blocks_(bitset.data()), size_(bitset.count()) {
     }
 
     BitsetView(const ConcurrentBitsetPtr& bitset_ptr) {
@@ -61,11 +57,6 @@ class BitsetView {
     const uint8_t*
     data() const {
         return blocks_;
-    }
-
-    uint8_t*
-    mutable_data() {
-        return const_cast<uint8_t*>(blocks_);
     }
 
     operator bool() const {

@@ -1,4 +1,8 @@
+
+
 ## 3. Index Service
+
+
 
 #### 3.1 Overview
 
@@ -19,7 +23,9 @@ type IndexCoord interface {
 }
 ```
 
-- _RegisterNode_
+
+
+* *RegisterNode*
 
 ```go
 type MsgBase struct {
@@ -50,7 +56,7 @@ type RegisterNodeResponse struct {
 }
 ```
 
-- _BuildIndex_
+* *BuildIndex*
 
 ```go
 type KeyValuePair struct {
@@ -73,7 +79,7 @@ type BuildIndexResponse struct {
 }
 ```
 
-- _DropIndex_
+* *DropIndex*
 
 ```go
 type DropIndexRequest struct {
@@ -81,7 +87,7 @@ type DropIndexRequest struct {
 }
 ```
 
-- _GetIndexStates_
+* *GetIndexStates*
 
 ```go
 type GetIndexStatesRequest struct {
@@ -111,7 +117,7 @@ type GetIndexStatesResponse struct {
 }
 ```
 
-- _GetIndexFilePaths_
+* *GetIndexFilePaths*
 
 ```go
 type GetIndexFilePathsRequest struct {
@@ -131,7 +137,7 @@ type GetIndexFilePathsResponse struct {
 
 ```
 
-- _NotifyBuildIndex_
+* *NotifyBuildIndex*
 
 ```go
 type NotifyBuildIndexRequest struct {
@@ -142,6 +148,8 @@ type NotifyBuildIndexRequest struct {
 }
 ```
 
+
+
 #### 3.3 Index Node Interface
 
 ```go
@@ -149,15 +157,12 @@ type IndexNode interface {
 	Component
 	TimeTickProvider
 
-	// CreateIndex receives request from IndexCoordinator to build an index.
-	// Index building is asynchronous, so when an index building request comes, IndexNode records the task and returns.
 	BuildIndex(ctx context.Context, req *indexpb.BuildIndexRequest) (*commonpb.Status, error)
-	// GetMetrics gets the metrics about IndexNode.
 	DropIndex(ctx context.Context, req *indexpb.DropIndexRequest) (*commonpb.Status, error)
 }
 ```
 
-- _BuildIndex_
+* *BuildIndex*
 
 ```go
 
@@ -176,7 +181,7 @@ type BuildIndexRequest struct {
 }
 ```
 
-- _DropIndex_
+* *DropIndex*
 
 ```go
 type DropIndexRequest struct {
